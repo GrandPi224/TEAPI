@@ -4,6 +4,29 @@ A dynamic, dark-themed US economic dashboard powered by the [Trading Economics A
 
 ![Python](https://img.shields.io/badge/Python-3.12+-blue) ![Dash](https://img.shields.io/badge/Dash-4.0-00b0ff) ![Plotly](https://img.shields.io/badge/Plotly-6.5-purple)
 
+## Screenshots
+
+### Bonds — Yield Curve + Table
+![Bonds Yield Curve](screenshots/bonds_yield_curve.png)
+
+### Bond Drill-Down — US 10Y Candlestick Chart
+![Bond Drill-Down](screenshots/bond_drilldown.png)
+
+### Stock Indices
+![Indices](screenshots/indices.png)
+
+### Commodities
+![Commodities](screenshots/commodities.png)
+
+### Economy — Prices & Inflation
+![Prices](screenshots/prices.png)
+
+### Economy — Labour Market
+![Labour](screenshots/labour.png)
+
+### News Feed
+![News](screenshots/news.png)
+
 ## Features
 
 ### Live Ticker Bar
@@ -103,6 +126,7 @@ te_dashboard/
   te_api.py           # Trading Economics API wrapper with caching
   assets/
     custom.css        # Dark theme, ticker animation, table styling
+  screenshots/        # Dashboard screenshots for README
   .env.example        # Environment variable template
   .gitignore
   README.md

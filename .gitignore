@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
 .env
-*.png
 *.jpg
+# Ignore loose screenshots but keep the screenshots/ folder
+screenshot_*.png
+!screenshots/

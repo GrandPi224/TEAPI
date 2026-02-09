@@ -1,0 +1,229 @@
+/* ── Trading Economics Dashboard — Dark Theme ── */
+
+body {
+    background-color: #121214 !important;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* ── Ticker Bar ── */
+.ticker-bar {
+    background: linear-gradient(180deg, #1a1a1e 0%, #121214 100%);
+    border-bottom: 1px solid #2a2a2e;
+    padding: 10px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    height: 42px;
+    display: flex;
+    align-items: center;
+}
+
+.ticker-track {
+    display: inline-block;
+    animation: ticker-scroll 30s linear infinite;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+}
+
+@keyframes ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.ticker-bar:hover .ticker-track {
+    animation-play-state: paused;
+}
+
+/* ── Layout ── */
+.body-wrapper {
+    display: flex;
+    min-height: calc(100vh - 42px);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+    width: 220px;
+    min-width: 220px;
+    background-color: #18181b;
+    border-right: 1px solid #2a2a2e;
+    padding: 16px 12px;
+    overflow-y: auto;
+    max-height: calc(100vh - 42px);
+    position: sticky;
+    top: 42px;
+}
+
+.sidebar-brand {
+    color: #00b0ff;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 2px;
+    margin: 0;
+    padding: 4px 0 8px 0;
+}
+
+.sidebar-heading {
+    color: #666;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    margin-bottom: 4px;
+}
+
+.sidebar-link,
+.nav-link {
+    color: #bbb !important;
+    font-size: 13px;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    transition: all 0.15s ease;
+}
+
+.sidebar-link:hover,
+.nav-link:hover {
+    color: #fff !important;
+    background-color: #2a2a2e !important;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #00b0ff !important;
+    color: #fff !important;
+}
+
+/* ── Main Panel ── */
+.main-panel {
+    flex: 1;
+    padding: 0;
+    background-color: #121214;
+    overflow-y: auto;
+    max-height: calc(100vh - 42px);
+}
+
+.content-title {
+    color: #e0e0e0;
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a2a2e;
+}
+
+/* ── Data Tables ── */
+.dash-table-container {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background-color: #2a2a2e !important;
+    border-color: #333 !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    border-color: #2a2a2e !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+    background-color: #252528 !important;
+}
+
+/* ── News Cards ── */
+.news-card {
+    background-color: #1e1e22 !important;
+    border: 1px solid #2a2a2e !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease;
+}
+
+.news-card:hover {
+    border-color: #00b0ff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 176, 255, 0.1);
+}
+
+/* ── Dropdown (refresh selector) ── */
+.Select-control {
+    background-color: #2a2a2e !important;
+    border-color: #333 !important;
+}
+
+.Select-menu-outer {
+    background-color: #2a2a2e !important;
+    border-color: #333 !important;
+}
+
+.VirtualizedSelectOption {
+    background-color: #2a2a2e;
+    color: #e0e0e0;
+}
+
+.VirtualizedSelectFocusedOption {
+    background-color: #333;
+}
+
+/* Dash dropdown overrides */
+.dash-dropdown .Select-control,
+.dash-dropdown .Select-menu-outer,
+.dash-dropdown .Select-option {
+    background-color: #2a2a2e !important;
+    color: #e0e0e0 !important;
+}
+
+/* ── Loading spinner ── */
+._dash-loading {
+    color: #00b0ff !important;
+}
+
+/* ── Buttons ── */
+.btn-info {
+    background-color: #00b0ff !important;
+    border-color: #00b0ff !important;
+    font-weight: 600;
+}
+
+.btn-info:hover {
+    background-color: #0091ea !important;
+}
+
+.btn-secondary {
+    background-color: #333 !important;
+    border-color: #444 !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #18181b;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ── Plotly chart overrides ── */
+.js-plotly-plot .plotly .modebar {
+    background-color: transparent !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn path {
+    fill: #666 !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn:hover path {
+    fill: #00b0ff !important;
+}

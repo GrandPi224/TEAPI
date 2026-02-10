@@ -3,6 +3,7 @@
 import time
 import requests
 import pandas as pd
+from bs4 import BeautifulSoup
 
 
 class TEClient:
@@ -187,3 +188,76 @@ class TEClient:
             return df
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         return df.sort_values("date", ascending=False).reset_index(drop=True)
+
+    # ── calendar (scraped from public page) ────────────────────
+
+    def get_calendar(self):
+        """Scrape today's US economic calendar from Trading Economics public page.
+
+        The HTML table has:
+          - Header rows (7 cells): cell[0] = date string
+          - Data rows (12 cells): [0]=time, [1]=country, [2]=flag, [3]=iso,
+            [4]=event, [5]=actual, [6]=previous, [7]=consensus, [8]=forecast,
+            [9-11]=responsive/alert cells
+          - Separator rows (2 cells): skip
+        """
+        cache_key = "_calendar"
+        now = time.time()
+        if cache_key in self._cache:
+            ts, data = self._cache[cache_key]
+            if now - ts < 900:  # 15 min cache
+                return data
+
+        url = "https://tradingeconomics.com/united-states/calendar"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+        except Exception:
+            return pd.DataFrame()
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        table = soup.find("table", {"class": "table"})
+        if not table:
+            return pd.DataFrame()
+
+        rows = []
+        current_date = ""
+        for tr in table.find_all("tr"):
+            # Header rows use <th> elements — first th has the date
+            ths = tr.find_all("th")
+            if ths:
+                current_date = ths[0].get_text(strip=True)
+                continue
+
+            cells = tr.find_all("td")
+
+            # Data rows have 12 cells; skip separator rows (2 cells)
+            if len(cells) < 9:
+                continue
+
+            time_str = cells[0].get_text(strip=True)
+            event = cells[4].get_text(strip=True)
+            actual = cells[5].get_text(strip=True)
+            previous = cells[6].get_text(strip=True)
+            consensus = cells[7].get_text(strip=True)
+            forecast = cells[8].get_text(strip=True)
+
+            if not event:
+                continue
+
+            rows.append({
+                "Date": current_date,
+                "Time": time_str,
+                "Event": event,
+                "Actual": actual,
+                "Previous": previous,
+                "Consensus": consensus,
+                "Forecast": forecast,
+            })
+
+        df = pd.DataFrame(rows)
+        self._cache[cache_key] = (now, df)
+        return df

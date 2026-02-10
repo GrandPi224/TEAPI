@@ -91,6 +91,12 @@ def build_sidebar():
         )
         for label, group in ECONOMY_GROUPS
     ]
+    calendar_link = dbc.NavLink(
+        "Calendar",
+        id={"type": "nav-link", "page": "calendar"},
+        href="#",
+        className="sidebar-link",
+    )
     news_link = dbc.NavLink(
         "News Feed",
         id={"type": "nav-link", "page": "news"},
@@ -112,7 +118,7 @@ def build_sidebar():
             html.Div("ECONOMY", className="sidebar-heading"),
             dbc.Nav(econ_links, vertical=True, pills=True),
             html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
-            dbc.Nav([news_link], vertical=True, pills=True),
+            dbc.Nav([calendar_link, news_link], vertical=True, pills=True),
             html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
             html.Div(
                 [
@@ -250,6 +256,8 @@ def render_main(page, drilldown, bond_dd, _interval, _refresh):
     elif page.startswith("econ-"):
         group = page.replace("econ-", "")
         return render_economy(group)
+    elif page == "calendar":
+        return render_calendar()
     elif page == "news":
         return render_news()
     return html.Div("Select a category from the sidebar.", className="text-muted p-4")
@@ -576,6 +584,94 @@ def render_bond_drilldown(name, symbol):
         + chart_children,
         className="p-3",
     )
+
+
+def render_calendar():
+    """Render today's US economic calendar."""
+    from datetime import datetime
+    df = te.get_calendar()
+    if df.empty:
+        return html.Div(
+            [
+                html.H4("Economic Calendar", className="content-title"),
+                html.P("No calendar events available.", className="text-muted"),
+            ],
+            className="p-3",
+        )
+
+    today_str = datetime.now().strftime("%A %B %d %Y")
+
+    # Build grouped content by date
+    children = [html.H4("US Economic Calendar", className="content-title")]
+
+    dates = df["Date"].unique() if "Date" in df.columns else [""]
+    for date_label in dates:
+        if date_label:
+            # Highlight today's date
+            is_today = today_str.lower() in date_label.lower()
+            date_style = {
+                "color": "#00e676" if is_today else "#00b0ff",
+                "marginTop": "20px",
+                "marginBottom": "10px",
+                "fontSize": "16px",
+            }
+            label_text = f"{date_label}  (TODAY)" if is_today else date_label
+            children.append(html.H5(label_text, style=date_style))
+
+        date_df = df[df["Date"] == date_label] if date_label else df
+
+        rows_data = []
+        for _, row in date_df.iterrows():
+            rows_data.append({
+                "Time": row.get("Time", ""),
+                "Event": row.get("Event", ""),
+                "Actual": row.get("Actual", ""),
+                "Consensus": row.get("Consensus", ""),
+                "Previous": row.get("Previous", ""),
+                "Forecast": row.get("Forecast", ""),
+            })
+
+        if not rows_data:
+            continue
+
+        cond_styles = [
+            {
+                "if": {"column_id": "Actual", "filter_query": '{Actual} ne ""'},
+                "fontWeight": "700",
+                "color": "#00e676",
+            },
+            {
+                "if": {"column_id": "Event"},
+                "textAlign": "left",
+                "minWidth": "280px",
+            },
+            {
+                "if": {"column_id": "Time"},
+                "color": "#888",
+                "width": "80px",
+            },
+        ]
+
+        children.append(
+            dash_table.DataTable(
+                data=rows_data,
+                columns=[
+                    {"name": "Time", "id": "Time"},
+                    {"name": "Event", "id": "Event"},
+                    {"name": "Actual", "id": "Actual"},
+                    {"name": "Consensus", "id": "Consensus"},
+                    {"name": "Previous", "id": "Previous"},
+                    {"name": "TE Forecast", "id": "Forecast"},
+                ],
+                style_table={"overflowX": "auto", "marginBottom": "20px"},
+                style_header=TABLE_HEADER_STYLE,
+                style_cell={**TABLE_CELL_STYLE, "textAlign": "center"},
+                style_data_conditional=cond_styles,
+                page_size=50,
+            )
+        )
+
+    return html.Div(children, className="p-3")
 
 
 def render_news():

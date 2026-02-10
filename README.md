@@ -24,6 +24,9 @@ A dynamic, dark-themed US economic dashboard powered by the [Trading Economics A
 ### Economy — Labour Market
 ![Labour](screenshots/labour.png)
 
+### Economic Calendar
+![Calendar](screenshots/calendar.png)
+
 ### News Feed
 ![News](screenshots/news.png)
 

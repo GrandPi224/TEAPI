@@ -37,6 +37,53 @@ MARKET_TYPES = [
     ("Commodities", "commodities"),
 ]
 
+# Key indicators to highlight per economy category (stat cards + charts)
+CATEGORY_HIGHLIGHTS = {
+    "GDP": {
+        "stats": ["GDP", "GDP Growth Rate", "GDP Annual Growth Rate", "GDP per Capita"],
+        "charts": ["GDP Growth Rate", "GDP", "GDP per Capita"],
+    },
+    "Labour": {
+        "stats": ["Non Farm Payrolls", "Unemployment Rate", "Job Vacancies", "Average Hourly Earnings YoY"],
+        "charts": ["Unemployment Rate", "Non Farm Payrolls", "Initial Jobless Claims", "Job Vacancies"],
+    },
+    "Prices": {
+        "stats": ["Inflation Rate", "Core Inflation Rate", "Core PCE Price Index Annual Change", "Producer Prices Change"],
+        "charts": ["Inflation Rate", "Core Inflation Rate", "Core PCE Price Index Annual Change", "Producer Prices Change"],
+    },
+    "Housing": {
+        "stats": ["30 Year Mortgage Rate", "Existing Home Sales", "Housing Starts", "Building Permits"],
+        "charts": ["30 Year Mortgage Rate", "Existing Home Sales", "Housing Starts", "Case Shiller Home Price Index YoY"],
+    },
+    "Consumer": {
+        "stats": ["Consumer Confidence", "Consumer Spending", "Retail Sales MoM", "Personal Savings"],
+        "charts": ["Consumer Confidence", "Retail Sales YoY", "Personal Savings", "Consumer Credit"],
+    },
+    "Business": {
+        "stats": ["Non Manufacturing PMI", "Business Confidence", "Industrial Production", "Durable Goods Orders"],
+        "charts": ["Non Manufacturing PMI", "Business Confidence", "Industrial Production", "Capacity Utilization"],
+    },
+    "Trade": {
+        "stats": ["Balance of Trade", "Exports", "Imports", "Current Account to GDP"],
+        "charts": ["Balance of Trade", "Exports", "Imports", "Current Account"],
+    },
+    "Money": {
+        "stats": ["Interest Rate", "Money Supply M2", "Effective Federal Funds Rate", "Banks Balance Sheet"],
+        "charts": ["Interest Rate", "Effective Federal Funds Rate", "Money Supply M2"],
+    },
+    "Government": {
+        "stats": ["Government Debt", "Government Debt to GDP", "Government Budget", "Government Budget Value"],
+        "charts": ["Government Debt", "Government Debt to GDP", "Government Budget", "Government Budget Value"],
+    },
+    "Energy": {
+        "stats": ["Crude Oil Rigs", "Total Rigs", "Strategic Petroleum Reserve Crude Oil Stocks", "Natural Gas Stocks Change"],
+        "charts": ["Crude Oil Rigs", "Strategic Petroleum Reserve Crude Oil Stocks", "Natural Gas Stocks Change"],
+    },
+}
+
+# Chart colors to cycle through
+CHART_COLORS = ["#00b0ff", "#00e676", "#ffd740", "#ff1744", "#e040fb", "#00bcd4"]
+
 # ── App init ─────────────────────────────────────────────────
 app = dash.Dash(
     __name__,
@@ -396,14 +443,129 @@ def render_market(mtype):
     return html.Div(children, className="p-3")
 
 
+def _format_stat_value(val, unit):
+    """Format a stat card value based on its unit."""
+    unit_str = str(unit) if unit else ""
+    if pd.isna(val):
+        return "N/A"
+    if "Billion" in unit_str and abs(val) >= 1000:
+        return f"${val / 1000:,.1f}T"
+    if "Billion" in unit_str:
+        return f"${val:,.1f}B"
+    if "Million" in unit_str and abs(val) >= 1_000_000:
+        return f"${val / 1_000_000:,.2f}T"
+    if "Million" in unit_str and abs(val) >= 1000:
+        return f"${val / 1000:,.1f}B"
+    if "Million" in unit_str:
+        return f"${val:,.0f}M"
+    if "percent" in unit_str.lower() or unit_str == "percent":
+        return f"{val:,.1f}%"
+    if "USD/Hour" in unit_str:
+        return f"${val:.2f}/hr"
+    if "USD" in unit_str and "per" not in unit_str.lower():
+        return f"${val:,.1f}"
+    if "points" in unit_str.lower():
+        return f"{val:,.1f}"
+    if "Thousand" in unit_str:
+        return f"{val:,.0f}K"
+    return f"{val:,.2f}"
+
+
 def render_economy(group):
-    """Render economy category table with clickable rows."""
+    """Render economy category with stat cards, charts, and clickable table."""
     df = te.get_snapshot_by_group(group)
     if df.empty:
         return html.Div("No data available.", className="text-muted p-4")
 
     group_labels = dict(ECONOMY_GROUPS)
     title = group_labels.get(group, group)
+    highlights = CATEGORY_HIGHLIGHTS.get(group, {})
+
+    children = [html.H4(title, className="content-title")]
+
+    # ── Stat cards ──
+    stat_names = highlights.get("stats", [])
+    if stat_names:
+        stat_cols = []
+        for name in stat_names[:4]:
+            row = df[df["Category"] == name]
+            if row.empty:
+                stat_cols.append(dbc.Col(dbc.Card(dbc.CardBody([
+                    html.P(name, style={"color": "#888", "fontSize": "12px", "margin": 0}),
+                    html.H5("N/A", style={"color": "#fff", "margin": 0}),
+                ]), className="bg-dark border-secondary"), md=3))
+                continue
+            r = row.iloc[0]
+            val = r.get("LatestValue", 0)
+            prev = r.get("PreviousValue", 0)
+            unit = r.get("Unit", "")
+            val_str = _format_stat_value(val, unit)
+            chg = (val - prev) if pd.notna(prev) and prev else 0
+            color = "#ff1744" if chg < 0 else "#00e676" if chg > 0 else "#888"
+            chg_str = f" ({chg:+,.2f})" if chg != 0 else ""
+            stat_cols.append(dbc.Col(dbc.Card(dbc.CardBody([
+                html.P(name, style={"color": "#888", "fontSize": "12px", "margin": 0}),
+                html.H5(val_str, style={"color": "#fff", "margin": "4px 0"}),
+                html.Span(chg_str, style={"color": color, "fontSize": "12px"}) if chg_str else html.Span(),
+            ]), className="bg-dark border-secondary"), md=3))
+        children.append(dbc.Row(stat_cols, className="mb-4 g-3"))
+
+    # ── Historical charts for key indicators ──
+    chart_names = highlights.get("charts", [])
+    for i, ind_name in enumerate(chart_names[:4]):
+        try:
+            hist = te.get_historical(ind_name)
+        except Exception:
+            continue
+        if hist.empty:
+            continue
+
+        color = CHART_COLORS[i % len(CHART_COLORS)]
+        # Get unit for y-axis label
+        ind_row = df[df["Category"] == ind_name]
+        unit = str(ind_row.iloc[0].get("Unit", "")) if not ind_row.empty else ""
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=hist["DateTime"], y=hist["Value"],
+            mode="lines",
+            name=ind_name,
+            line=dict(color=color, width=2.5),
+            fill="tozeroy",
+            fillcolor=color.replace(")", ",0.08)").replace("rgb", "rgba") if "rgb" in color else f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.08)",
+        ))
+
+        y_title = unit if unit else ""
+        tick_fmt = {}
+        if "percent" in unit.lower():
+            tick_fmt = {"ticksuffix": "%"}
+        elif "Billion" in unit:
+            tick_fmt = {"tickprefix": "$"}
+        elif "Million" in unit:
+            tick_fmt = {"tickprefix": "$"}
+
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#1e1e22", plot_bgcolor="#1e1e22",
+            margin=dict(l=50, r=30, t=40, b=40),
+            title=dict(text=ind_name, font=dict(size=16)),
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333", title=y_title, **tick_fmt),
+            hovermode="x unified",
+            height=320,
+        )
+
+        # Add zero reference line for indicators that go negative
+        if hist["Value"].min() < 0:
+            fig.add_hline(y=0, line_color="#555", line_width=1)
+
+        children.append(dcc.Graph(figure=fig, config={"displayModeBar": True}, className="mb-3"))
+
+    # ── Full data table ──
+    children.append(html.H5("All Indicators",
+                             style={"color": "#aaa", "marginTop": "20px", "marginBottom": "10px"}))
+    children.append(html.P("Click any row to drill down into historical data.",
+                            style={"color": "#888", "fontSize": "13px"}))
 
     cols = ["Category", "LatestValue", "PreviousValue", "Change", "PctChange",
             "Unit", "LatestValueDate", "Frequency"]
@@ -422,25 +584,21 @@ def render_economy(group):
     for c in display_df.select_dtypes(include="number").columns:
         display_df[c] = display_df[c].round(3)
 
-    return html.Div(
-        [
-            html.H4(title, className="content-title"),
-            html.P("Click any row to drill down into historical data.",
-                    style={"color": "#888", "fontSize": "13px"}),
-            dash_table.DataTable(
-                id="econ-table",
-                data=display_df.to_dict("records"),
-                columns=[{"name": c, "id": c} for c in display_df.columns],
-                sort_action="native",
-                style_table={"overflowX": "auto"},
-                style_header=TABLE_HEADER_STYLE,
-                style_cell={**TABLE_CELL_STYLE, "cursor": "pointer"},
-                style_data_conditional=conditional_coloring(display_df, "Chg %"),
-                page_size=30,
-            ),
-        ],
-        className="p-3",
+    children.append(
+        dash_table.DataTable(
+            id="econ-table",
+            data=display_df.to_dict("records"),
+            columns=[{"name": c, "id": c} for c in display_df.columns],
+            sort_action="native",
+            style_table={"overflowX": "auto"},
+            style_header=TABLE_HEADER_STYLE,
+            style_cell={**TABLE_CELL_STYLE, "cursor": "pointer"},
+            style_data_conditional=conditional_coloring(display_df, "Chg %"),
+            page_size=30,
+        )
     )
+
+    return html.Div(children, className="p-3")
 
 
 def render_drilldown(indicator):

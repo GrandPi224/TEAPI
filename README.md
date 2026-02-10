@@ -18,11 +18,29 @@ A dynamic, dark-themed US economic dashboard powered by the [Trading Economics A
 ### Commodities
 ![Commodities](screenshots/commodities.png)
 
-### Economy — Prices & Inflation
-![Prices](screenshots/prices.png)
+### Economy — GDP
+![GDP](screenshots/gdp.png)
 
 ### Economy — Labour Market
-![Labour](screenshots/labour.png)
+![Labour](screenshots/labour_new.png)
+
+### Economy — Prices & Inflation
+![Prices](screenshots/prices_new.png)
+
+### Economy — Housing
+![Housing](screenshots/housing.png)
+
+### Economy — Consumer
+![Consumer](screenshots/consumer.png)
+
+### Economy — Trade
+![Trade](screenshots/trade.png)
+
+### Economy — Money & Rates
+![Money](screenshots/money.png)
+
+### Economy — Energy
+![Energy](screenshots/energy.png)
 
 ### Government — Debt & Deficit
 ![Government Debt](screenshots/govt_debt.png)

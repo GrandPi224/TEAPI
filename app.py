@@ -91,6 +91,12 @@ def build_sidebar():
         )
         for label, group in ECONOMY_GROUPS
     ]
+    govt_link = dbc.NavLink(
+        "Debt & Deficit",
+        id={"type": "nav-link", "page": "government"},
+        href="#",
+        className="sidebar-link",
+    )
     calendar_link = dbc.NavLink(
         "Calendar",
         id={"type": "nav-link", "page": "calendar"},
@@ -117,6 +123,9 @@ def build_sidebar():
             html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
             html.Div("ECONOMY", className="sidebar-heading"),
             dbc.Nav(econ_links, vertical=True, pills=True),
+            html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
+            html.Div("GOVERNMENT", className="sidebar-heading"),
+            dbc.Nav([govt_link], vertical=True, pills=True),
             html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
             dbc.Nav([calendar_link, news_link], vertical=True, pills=True),
             html.Hr(style={"borderColor": "#333", "margin": "12px 0"}),
@@ -256,6 +265,8 @@ def render_main(page, drilldown, bond_dd, _interval, _refresh):
     elif page.startswith("econ-"):
         group = page.replace("econ-", "")
         return render_economy(group)
+    elif page == "government":
+        return render_government()
     elif page == "calendar":
         return render_calendar()
     elif page == "news":
@@ -584,6 +595,191 @@ def render_bond_drilldown(name, symbol):
         + chart_children,
         className="p-3",
     )
+
+
+def render_government():
+    """Render Government Debt & Deficit dashboard with charts and stats."""
+    snapshot = te.get_snapshot_by_group("Government")
+
+    # ── Key stats cards ──
+    def _stat(label, category, fmt=",.0f", suffix=""):
+        if snapshot.empty:
+            return dbc.Col(dbc.Card(dbc.CardBody([
+                html.P(label, style={"color": "#888", "fontSize": "12px", "margin": 0}),
+                html.H5("N/A", style={"color": "#fff", "margin": 0}),
+            ]), className="bg-dark border-secondary"), md=3)
+        row = snapshot[snapshot["Category"] == category]
+        if row.empty:
+            val_str = "N/A"
+            chg = 0
+        else:
+            r = row.iloc[0]
+            val = r.get("LatestValue", 0)
+            prev = r.get("PreviousValue", 0)
+            unit = r.get("Unit", "")
+            chg = val - prev if prev else 0
+            if "Million" in str(unit) and val > 1_000_000:
+                val_str = f"${val / 1_000_000:,.2f}T"
+            elif "Million" in str(unit) and val > 1_000:
+                val_str = f"${val / 1_000:,.1f}B"
+            elif "Million" in str(unit):
+                val_str = f"${val:,.0f}M"
+            elif "Billion" in str(unit):
+                val_str = f"${val:,.0f}B"
+            elif "percent" in str(unit).lower():
+                val_str = f"{val:.1f}%"
+            else:
+                val_str = f"{val:{fmt}}{suffix}"
+        color = "#ff1744" if chg < 0 else "#00e676" if chg > 0 else "#888"
+        return dbc.Col(dbc.Card(dbc.CardBody([
+            html.P(label, style={"color": "#888", "fontSize": "12px", "margin": 0}),
+            html.H5(val_str, style={"color": "#fff", "margin": "4px 0"}),
+        ]), className="bg-dark border-secondary"), md=3)
+
+    stat_row = dbc.Row([
+        _stat("Total Debt", "Government Debt"),
+        _stat("Debt / GDP", "Government Debt to GDP"),
+        _stat("Budget Deficit (% GDP)", "Government Budget"),
+        _stat("Monthly Deficit", "Government Budget Value"),
+    ], className="mb-4 g-3")
+
+    children = [
+        html.H4("US Government Debt & Deficit", className="content-title"),
+        stat_row,
+    ]
+
+    # ── Debt chart ──
+    debt_hist = te.get_historical("Government Debt")
+    if not debt_hist.empty:
+        debt_hist["Trillions"] = debt_hist["Value"] / 1_000_000  # value in millions
+        fig_debt = go.Figure()
+        fig_debt.add_trace(go.Scatter(
+            x=debt_hist["DateTime"], y=debt_hist["Trillions"],
+            mode="lines",
+            name="Total Debt",
+            line=dict(color="#ff1744", width=2.5),
+            fill="tozeroy",
+            fillcolor="rgba(255,23,68,0.08)",
+        ))
+        fig_debt.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#1e1e22", plot_bgcolor="#1e1e22",
+            margin=dict(l=50, r=30, t=40, b=40),
+            title=dict(text="US Federal Debt (Trillions USD)", font=dict(size=16)),
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333", title="$ Trillions", tickprefix="$", tickformat=",.1f"),
+            hovermode="x unified",
+            height=350,
+        )
+        children.append(dcc.Graph(figure=fig_debt, config={"displayModeBar": True}, className="mb-3"))
+
+    # ── Debt-to-GDP chart ──
+    dtg_hist = te.get_historical("Government Debt to GDP")
+    if not dtg_hist.empty:
+        fig_dtg = go.Figure()
+        fig_dtg.add_trace(go.Scatter(
+            x=dtg_hist["DateTime"], y=dtg_hist["Value"],
+            mode="lines+markers",
+            name="Debt / GDP",
+            line=dict(color="#ffd740", width=2.5),
+            marker=dict(size=4),
+            fill="tozeroy",
+            fillcolor="rgba(255,215,64,0.08)",
+        ))
+        # Reference line at 100%
+        fig_dtg.add_hline(y=100, line_dash="dash", line_color="#ff1744",
+                          annotation_text="100% of GDP", annotation_position="top left",
+                          annotation_font_color="#ff1744")
+        fig_dtg.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#1e1e22", plot_bgcolor="#1e1e22",
+            margin=dict(l=50, r=30, t=40, b=40),
+            title=dict(text="Debt-to-GDP Ratio (%)", font=dict(size=16)),
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333", title="% of GDP", ticksuffix="%"),
+            hovermode="x unified",
+            height=350,
+        )
+        children.append(dcc.Graph(figure=fig_dtg, config={"displayModeBar": True}, className="mb-3"))
+
+    # ── Budget Deficit (% of GDP) chart ──
+    budget_hist = te.get_historical("Government Budget")
+    if not budget_hist.empty:
+        fig_bud = go.Figure()
+        colors = ["#00e676" if v >= 0 else "#ff1744" for v in budget_hist["Value"]]
+        fig_bud.add_trace(go.Bar(
+            x=budget_hist["DateTime"], y=budget_hist["Value"],
+            name="Budget Balance",
+            marker_color=colors,
+        ))
+        fig_bud.add_hline(y=0, line_color="#555", line_width=1)
+        fig_bud.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#1e1e22", plot_bgcolor="#1e1e22",
+            margin=dict(l=50, r=30, t=40, b=40),
+            title=dict(text="Budget Balance (% of GDP)", font=dict(size=16)),
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333", title="% of GDP", ticksuffix="%"),
+            hovermode="x unified",
+            height=350,
+        )
+        children.append(dcc.Graph(figure=fig_bud, config={"displayModeBar": True}, className="mb-3"))
+
+    # ── Monthly Budget Value chart ──
+    monthly_hist = te.get_historical("Government Budget Value")
+    if not monthly_hist.empty:
+        monthly_hist["Billions"] = monthly_hist["Value"] / 1_000  # value in millions
+        fig_mth = go.Figure()
+        colors_m = ["#00e676" if v >= 0 else "#ff1744" for v in monthly_hist["Billions"]]
+        fig_mth.add_trace(go.Bar(
+            x=monthly_hist["DateTime"], y=monthly_hist["Billions"],
+            name="Monthly Balance",
+            marker_color=colors_m,
+        ))
+        fig_mth.add_hline(y=0, line_color="#555", line_width=1)
+        fig_mth.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#1e1e22", plot_bgcolor="#1e1e22",
+            margin=dict(l=50, r=30, t=40, b=40),
+            title=dict(text="Monthly Budget Surplus / Deficit (Billions USD)", font=dict(size=16)),
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333", title="$ Billions", tickprefix="$", tickformat=",.0f"),
+            hovermode="x unified",
+            height=350,
+        )
+        children.append(dcc.Graph(figure=fig_mth, config={"displayModeBar": True}, className="mb-3"))
+
+    # ── All Government indicators table ──
+    if not snapshot.empty:
+        cols = ["Category", "LatestValue", "PreviousValue", "Change", "PctChange",
+                "Unit", "LatestValueDate", "Frequency"]
+        cols = [c for c in cols if c in snapshot.columns]
+        tbl_df = snapshot[cols].copy()
+        tbl_df.rename(columns={
+            "LatestValue": "Latest", "PreviousValue": "Previous",
+            "PctChange": "Chg %", "LatestValueDate": "Date",
+        }, inplace=True)
+        if "Date" in tbl_df.columns:
+            tbl_df["Date"] = tbl_df["Date"].astype(str).str[:10]
+        for c in tbl_df.select_dtypes(include="number").columns:
+            tbl_df[c] = tbl_df[c].round(2)
+
+        children.append(html.H5("All Government Indicators",
+                                 style={"color": "#aaa", "marginTop": "20px", "marginBottom": "10px"}))
+        children.append(
+            dash_table.DataTable(
+                data=tbl_df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in tbl_df.columns],
+                sort_action="native",
+                style_table={"overflowX": "auto"},
+                style_header=TABLE_HEADER_STYLE,
+                style_cell=TABLE_CELL_STYLE,
+                style_data_conditional=conditional_coloring(tbl_df, "Chg %"),
+                page_size=20,
+            )
+        )
+
+    return html.Div(children, className="p-3")
 
 
 def render_calendar():

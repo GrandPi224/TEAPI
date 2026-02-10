@@ -24,6 +24,10 @@ A dynamic, dark-themed US economic dashboard powered by the [Trading Economics A
 ### Economy — Labour Market
 ![Labour](screenshots/labour.png)
 
+### Government — Debt & Deficit
+![Government Debt](screenshots/govt_debt.png)
+![Government Deficit](screenshots/govt_deficit.png)
+
 ### Economic Calendar
 ![Calendar](screenshots/calendar.png)
 
